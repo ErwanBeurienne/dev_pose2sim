@@ -650,21 +650,31 @@ def kinematics_all(config_dict):
         logging.warning("Number of subject masses does not match number of TRC files. Missing masses are set to 70kg.\n")
         subject_mass += [70] * (len(trc_files) - len(subject_mass))
 
-    # Perform scaling and IK for each trc file
+# Perform scaling and IK for each trc file
     for p, trc_file in enumerate(trc_files):
         logging.info(f"Processing TRC file: {trc_file.resolve()}")
 
         logging.info("\nScaling...")
-        perform_scaling(trc_file, pose_model, kinematics_dir, osim_setup_dir, use_simple_model, right_left_symmetry=right_left_symmetry, subject_height=subject_height[p], subject_mass=subject_mass[p], 
-                        remove_scaling_setup=remove_scaling_setup, fastest_frames_to_remove_percent=fastest_frames_to_remove_percent, large_hip_knee_angles=large_hip_knee_angles, trimmed_extrema_percent=trimmed_extrema_percent,close_to_zero_speed_m=close_to_zero_speed)
-        logging.info(f"\tDone. OpenSim logs saved to {opensim_logs_file.resolve()}.")
-        logging.info(f"\tScaled model saved to {(kinematics_dir / (trc_file.stem + '_scaled.osim')).resolve()}")
+        try:
+            perform_scaling(trc_file, pose_model, kinematics_dir, osim_setup_dir, use_simple_model, right_left_symmetry=right_left_symmetry, subject_height=subject_height[p], subject_mass=subject_mass[p], 
+                            remove_scaling_setup=remove_scaling_setup, fastest_frames_to_remove_percent=fastest_frames_to_remove_percent, large_hip_knee_angles=large_hip_knee_angles, trimmed_extrema_percent=trimmed_extrema_percent,close_to_zero_speed_m=close_to_zero_speed)
+            logging.info(f"\tDone. OpenSim logs saved to {opensim_logs_file.resolve()}.")
+            logging.info(f"\tScaled model saved to {(kinematics_dir / (trc_file.stem + '_scaled.osim')).resolve()}")
+        except Exception as e:
+            logging.error(f"Error during Scaling for {trc_file.name}: {e}")
+            logging.warning(f"Skipping {trc_file.name} and moving to next file.\n")
+            continue
         
         logging.info("\nInverse Kinematics...")
-        import time
-        start_time = time.time()
-        perform_IK(trc_file, kinematics_dir, osim_setup_dir, pose_model, remove_IK_setup=remove_IK_setup)
-        end_time = time.time()
-        print(f"\tIK took {round(end_time - start_time, 2)} seconds for {trc_file.name}.")
-        logging.info(f"\tDone. OpenSim logs saved to {opensim_logs_file.resolve()}.")
-        logging.info(f"\tJoint angle data saved to {(kinematics_dir / (trc_file.stem + '.mot')).resolve()}\n")
+        try:
+            import time
+            start_time = time.time()
+            perform_IK(trc_file, kinematics_dir, osim_setup_dir, pose_model, remove_IK_setup=remove_IK_setup)
+            end_time = time.time()
+            print(f"\tIK took {round(end_time - start_time, 2)} seconds for {trc_file.name}.")
+            logging.info(f"\tDone. OpenSim logs saved to {opensim_logs_file.resolve()}.")
+            logging.info(f"\tJoint angle data saved to {(kinematics_dir / (trc_file.stem + '.mot')).resolve()}\n")
+        except Exception as e:
+            logging.error(f"Error during Inverse Kinematics for {trc_file.name}: {e}")
+            logging.warning(f"Skipping {trc_file.name} and moving to next file.\n")
+            continue
